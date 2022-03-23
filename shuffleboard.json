@@ -1,0 +1,108 @@
+{
+  "tabPane": [
+    {
+      "title": "HALT3R",
+      "autoPopulate": true,
+      "autoPopulatePrefix": "SmartDashboard/",
+      "widgetPane": {
+        "gridSize": 59.0,
+        "showGrid": false,
+        "hgap": 8.0,
+        "vgap": 8.0,
+        "titleType": 1,
+        "tiles": {
+          "0,0": {
+            "size": [
+              9,
+              8
+            ],
+            "content": {
+              "_type": "Camera Stream",
+              "_title": "Camera",
+              "Crosshair/Show crosshair": false,
+              "Crosshair/Crosshair color": "#FFFFFFFF",
+              "Controls/Show controls": false,
+              "Controls/Rotation": "NONE",
+              "compression": 10.222220963122798,
+              "fps": 30,
+              "imageWidth": 320,
+              "imageHeight": 240
+            }
+          },
+          "19,0": {
+            "size": [
+              3,
+              5
+            ],
+            "content": {
+              "_type": "List Layout",
+              "_title": "Encoders",
+              "Layout/Label position": "BOTTOM",
+              "_children": [
+                {
+                  "_type": "Text View",
+                  "_source0": "network_table:///SmartDashboard/Dynamic Master Position",
+                  "_title": "Dynamic Master Position"
+                },
+                {
+                  "_type": "Text View",
+                  "_source0": "network_table:///SmartDashboard/Dynamic Slave Position",
+                  "_title": "Dynamic Slave Position"
+                },
+                {
+                  "_type": "Text View",
+                  "_source0": "network_table:///SmartDashboard/Static Master Position",
+                  "_title": "Static Master Position"
+                },
+                {
+                  "_type": "Text View",
+                  "_source0": "network_table:///SmartDashboard/Static Slave Position",
+                  "_title": "Static Slave Position"
+                }
+              ]
+            }
+          },
+          "9,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Air Pressure",
+              "_title": "Air Pressure"
+            }
+          },
+          "11,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Static right Position",
+              "_title": "Static right Position"
+            }
+          },
+          "13,0": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Static left Position",
+              "_title": "Static left Position"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "windowGeometry": {
+    "x": -6.400000095367432,
+    "y": 0.0,
+    "width": 1548.800048828125,
+    "height": 671.2000122070312
+  }
+}

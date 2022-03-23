@@ -1,40 +1,44 @@
 package frc.robot;
 
-import javax.lang.model.util.ElementScanner6;
+import java.util.Collection;
 
-import com.ctre.phoenix.motorcontrol.ControlMode;
-import com.ctre.phoenix.motorcontrol.FollowerType;
+import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.InvertType;
-import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.TalonFXControlMode;
+import com.ctre.phoenix.motorcontrol.TalonFXInvertType;
 import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonFX;
 import com.ctre.phoenix.motorcontrol.can.TalonFXConfiguration;
 import com.ctre.phoenix.motorcontrol.can.VictorSPX;
+import com.ctre.phoenix.music.Orchestra;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+import com.revrobotics.SparkMaxRelativeEncoder.Type;
 
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends TimedRobot 
 {
   /* DRIVETRAIN */
   /********************************************************************************************************************************/
-  private PWMSparkMax frontLeftMotor = new PWMSparkMax(0);
-  private PWMSparkMax frontRightMotor = new PWMSparkMax(1);
-  private PWMSparkMax backLeftMotor = new PWMSparkMax(2);
-  private PWMSparkMax backRightMotor = new PWMSparkMax(3);
+  private PWMSparkMax leftFrontMotor = new PWMSparkMax(0);
+  private CANSparkMax rightFrontMotor = new CANSparkMax(60, MotorType.kBrushed);
+  private PWMSparkMax leftBackMotor = new PWMSparkMax(2);
+  private CANSparkMax rightBackMotorCanSparkMax = new CANSparkMax(61, MotorType.kBrushed);
 
-  private MotorControllerGroup leftDrive = new MotorControllerGroup(frontLeftMotor, backLeftMotor);
-  private MotorControllerGroup rightDrive = new MotorControllerGroup(frontRightMotor, backRightMotor);
+  private MotorControllerGroup leftDrive = new MotorControllerGroup(leftFrontMotor, leftBackMotor);
+  private MotorControllerGroup rightDrive = new MotorControllerGroup(rightFrontMotor, rightBackMotorCanSparkMax);
 
   private DifferentialDrive drivetrain;
   /********************************************************************************************************************************/
@@ -42,75 +46,87 @@ public class Robot extends TimedRobot
   /* STORAGE AND INTAKE */
   /********************************************************************************************************************************/
   private CANSparkMax intakeMotor = new CANSparkMax(8, MotorType.kBrushed);
-  private VictorSPX storageMotor_master = new VictorSPX(10);
-  private VictorSPX storageMotor_slave = new VictorSPX(11);
+  private VictorSPX rightStorageMotor = new VictorSPX(10);
+  private VictorSPX leftStorageMotor = new VictorSPX(11);
+
+  private DoubleSolenoid leftIntakePiston = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 1);
+  private DoubleSolenoid rightIntakePiston = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 2, 3);
   /********************************************************************************************************************************/
 
   /* SHOOTER */
   /********************************************************************************************************************************/
-  private CANSparkMax shooterMotor_master = new CANSparkMax(20, MotorType.kBrushless);
-  private CANSparkMax shooterMotor_slave = new CANSparkMax(21, MotorType.kBrushless);
+  private CANSparkMax rightShooterMotor = new CANSparkMax(20, MotorType.kBrushless);
+  private CANSparkMax leftShooterMotor = new CANSparkMax(21, MotorType.kBrushless);
   /********************************************************************************************************************************/
 
   /* CLIMB */
   /********************************************************************************************************************************/
-  private TalonFX staticClimbMotor_master = new TalonFX(30);
-  private TalonFX staticClimbMotor_slave = new TalonFX(31);
-  private TalonFXConfiguration config = new TalonFXConfiguration();
+  private TalonFX rightStaticMotor = new TalonFX(30);
+  private TalonFX leftStaticMotor = new TalonFX(31);
+  private TalonFXConfiguration talonConfig = new TalonFXConfiguration();
   
-  private CANSparkMax dynamicClimbMotor_master = new CANSparkMax(40, MotorType.kBrushless);
-  private CANSparkMax dynamicClimbMotor_slave = new CANSparkMax(41, MotorType.kBrushless);
+  private CANSparkMax rightDynamicMotor = new CANSparkMax(40, MotorType.kBrushless);
+  private CANSparkMax leftDynamicMotor = new CANSparkMax(41, MotorType.kBrushless);
+
+  private RelativeEncoder rightDynamicEncoder = rightDynamicMotor.getEncoder(Type.kHallSensor, 42);
+  private RelativeEncoder leftDynamicEncoder = leftDynamicMotor.getEncoder(Type.kHallSensor, 42);
+
+  private Orchestra orchestra = new Orchestra();
+  
   /********************************************************************************************************************************/
 
-  /* JOYSTICKS AND PNEUMATICS */
+  /* JOYSTICKS AND COMPRESSOR */
   /********************************************************************************************************************************/
   private Joystick leftController = new Joystick(0);
   private Joystick rightController = new Joystick(1);
 
   private Compressor compressor = new Compressor(PneumaticsModuleType.CTREPCM);
-
-  private DoubleSolenoid leftIntakePiston = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 1);
-  private DoubleSolenoid rightIntakePiston = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 2, 3);
   /********************************************************************************************************************************/
   
   @Override
   public void robotInit() 
   {
-    // BIND SLAVES TO MASTERS(INVERTED IF NEEDED)
-    storageMotor_slave.follow(storageMotor_master);
-    storageMotor_slave.setInverted(InvertType.FollowMaster);
-    shooterMotor_slave.follow(shooterMotor_master, true);
-    staticClimbMotor_slave.follow(staticClimbMotor_master, FollowerType.PercentOutput);
-    staticClimbMotor_slave.setInverted(InvertType.FollowMaster);
-    dynamicClimbMotor_slave.follow(dynamicClimbMotor_master, true);
-    
+    // SET MOTOR DIRECTIONS
+    leftShooterMotor.follow(rightShooterMotor, true);
+    leftStorageMotor.follow(rightStorageMotor);
+    leftStorageMotor.setInverted(InvertType.FollowMaster);
+    rightStaticMotor.setInverted(TalonFXInvertType.CounterClockwise);
+    leftStaticMotor.setInverted(TalonFXInvertType.Clockwise);
+    rightDynamicMotor.setInverted(true);
+
     // SETUP DRIVETRAIN
     rightDrive.setInverted(true);
     drivetrain = new DifferentialDrive(leftDrive, rightDrive);
 
     // CONFIGURE STATIC CLIMB
-    config.supplyCurrLimit.enable = true;
-    config.supplyCurrLimit.triggerThresholdCurrent = 30;
-    config.supplyCurrLimit.currentLimit = 28;
-    config.supplyCurrLimit.triggerThresholdTime = 1.5;
-    config.openloopRamp = 1;
+    talonConfig.supplyCurrLimit.enable = true;
+    talonConfig.supplyCurrLimit.triggerThresholdCurrent = 40;
+    talonConfig.supplyCurrLimit.currentLimit = 38;
+    talonConfig.supplyCurrLimit.triggerThresholdTime = 3.0;
+    talonConfig.openloopRamp = 0.5;
+    talonConfig.primaryPID.selectedFeedbackSensor = FeedbackDevice.IntegratedSensor;
     
-    staticClimbMotor_master.configAllSettings(config);
-    staticClimbMotor_slave.configAllSettings(config);
+    rightStaticMotor.configAllSettings(talonConfig);
+    leftStaticMotor.configAllSettings(talonConfig);
+
+    // TURN OFF ALL MOTORS
+    disableAllMotors();
+    
+    // CREATE SMARTDASHBOARD
+    createSmartDashboardValues();
   }
 
   @Override
   public void robotPeriodic() 
   {
-  /* SMARTDASHBOARD */
-  /********************************************************************************************************************************/
-  SmartDashboard.putNumber("Pressure", compressor.getPressure());
-  /********************************************************************************************************************************/
-
+    SmartDashboard.updateValues();
   }
 
   @Override
-  public void autonomousInit() {}
+  public void autonomousInit() 
+  {
+    
+  }
 
   @Override
   public void autonomousPeriodic() {}
@@ -120,6 +136,7 @@ public class Robot extends TimedRobot
   {
     // START COMPRESSOR
     compressor.enableDigital();
+
   }
 
   @Override
@@ -128,13 +145,13 @@ public class Robot extends TimedRobot
     /* DRIVETRAIN */
   /********************************************************************************************************************************/
     // DRIVETRAIN
-    if(rightController.getRawAxis(2) < -0.5)
+    if(rightController.getRawAxis(2) < 0.5)
     {
       drivetrain.curvatureDrive(0, 0, false);
     }
     else
     {
-      drivetrain.curvatureDrive(leftController.getRawAxis(1), rightController.getRawAxis(0), rightController.getRawButton(2));
+      drivetrain.curvatureDrive(leftController.getRawAxis(1), rightController.getRawAxis(0) * -1, rightController.getRawButton(2));
     }
   /********************************************************************************************************************************/
 
@@ -143,27 +160,27 @@ public class Robot extends TimedRobot
     // SHOOTER
     if (rightController.getRawButton(1))
     {
-      shooterMotor_master.set(0.90);
+      rightShooterMotor.set(0.90);
     }
     else
     {
-      shooterMotor_master.set(0.0);
+      rightShooterMotor.set(0.0);
     }
 
     // STORAGE
-    if(rightController.getRawButton(2))
+    if(rightController.getRawButton(3))
     {
-      storageMotor_master.set(VictorSPXControlMode.PercentOutput, -0.55);
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.55);
     }
     else
     {
-      storageMotor_master.set(VictorSPXControlMode.PercentOutput, 0.0);
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.0);
     }
 
     // INTAKE
     if(leftController.getRawButton(1))
     {
-      intakeMotor.set(0.5);
+      intakeMotor.set(0.2);
     }
     else
     {
@@ -173,31 +190,44 @@ public class Robot extends TimedRobot
   
     /* CLIMB */
   /********************************************************************************************************************************/
-    // STATIC
-    staticClimbMotor_master.set(TalonFXControlMode.PercentOutput, 0);
-
+    // STATIC CONTROL
     if(leftController.getPOV() == 0)
     {
-      staticClimbMotor_master.set(TalonFXControlMode.PercentOutput, 0.9);
+      rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0.9);
+      leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0.9);
     }
     if(leftController.getPOV() == 180)
     {
-      staticClimbMotor_master.set(TalonFXControlMode.PercentOutput, -0.9);
+      rightStaticMotor.set(TalonFXControlMode.PercentOutput, -0.9);
+      leftStaticMotor.set(TalonFXControlMode.PercentOutput, -0.9);
     }
 
-    // DYNAMIC
-    if(rightController.getPOV() == 45 || rightController.getPOV() == 90 || rightController.getPOV() == 135)
+    if(leftController.getPOV() == -1)
     {
-      dynamicClimbMotor_master.set(.35);
+      rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
+      leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
+    }
+
+    // DYNAMIC CONTROL
+    if(rightController.getPOV() == 90)
+    {
+      rightDynamicMotor.set(0.25);
+      leftDynamicMotor.set(0.25);
     }
     if(rightController.getPOV() == 270)
     {
-      dynamicClimbMotor_master.set(-.35);
+      rightDynamicMotor.set(-0.25);
+      leftDynamicMotor.set(-0.25);
     }
-    else
+
+    if(rightController.getPOV() == -1)
     {
-      dynamicClimbMotor_master.set(0.0);
+      rightDynamicMotor.set(0.00);
+      leftDynamicMotor.set(0.00);
     }
+
+    // CHECK LIMITS
+
   /********************************************************************************************************************************/
   }
 
@@ -208,24 +238,79 @@ public class Robot extends TimedRobot
   public void disabledPeriodic() {}
 
   @Override
-  public void testInit() {}
+  public void testInit() 
+  {
+    disableAllMotors();
+
+    // CALLIBRATE RIGHT STATIC CLIMB
+    while(!rightController.getRawButton(3))
+    {
+      rightStaticMotor.set(TalonFXControlMode.PercentOutput, rightController.getRawAxis(1) * 0.5);
+      Shuffleboard.update();
+    }
+    
+    rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0);
+    rightStaticMotor.setSelectedSensorPosition(0);
+    Timer.delay(0.5);
+
+    // CALLIBRATE LEFT STATIC CLIMB
+    while(!leftController.getRawButton(3))
+    {
+      leftStaticMotor.set(TalonFXControlMode.PercentOutput, leftController.getRawAxis(1) * 0.5);
+      Shuffleboard.update();
+    }
+    leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0);
+    leftStaticMotor.setSelectedSensorPosition(0);
+    Timer.delay(0.5);
+
+    // CALLIBRATE RIGHT DYNAMIC CLIMB
+    while(!rightController.getRawButton(3))
+    {
+      rightDynamicMotor.set(rightController.getRawAxis(1) * .2);
+      Shuffleboard.update();
+    }
+    rightDynamicMotor.set(0);
+    rightDynamicEncoder.setPosition(0);
+    Timer.delay(0.5);
+
+    // CALLIBRATE LEFT DYNAMIC CLIMB
+    while(!leftController.getRawButton(3))
+    {
+      leftDynamicMotor.set(leftController.getRawAxis(1) * .2);
+      Shuffleboard.update();
+    }
+    leftDynamicMotor.set(0);
+    leftDynamicEncoder.setPosition(0);
+    
+    // Shuffleboard.update();
+  }
 
   @Override
   public void testPeriodic() {}
 
-  @Override
-  public void simulationInit() {}
-
-  @Override
-  public void simulationPeriodic() {}
-
   /* HELPER METHODS */
   /********************************************************************************************************************************/
-  // private void setStorageMotors(double speed)
-  // {
-  //   rightStorageMotor.set(ControlMode.PercentOutput, speed);
-  //   leftStorageMotor.set(ControlMode.PercentOutput, -speed);
-  // }
+    private void createSmartDashboardValues()
+    {
+      SmartDashboard.putNumber("Air Pressure", compressor.getPressure());
+      SmartDashboard.putNumber("Static Right Position", rightStaticMotor.getSelectedSensorPosition(0));
+      SmartDashboard.putNumber("Static Left Position", leftStaticMotor.getSelectedSensorPosition(0));
+      SmartDashboard.putNumber("Dynamic Right Position", rightDynamicEncoder.getPosition());
+      SmartDashboard.putNumber("Dynamic Left Position", leftDynamicEncoder.getPosition());
+      
+    }
+
+    private void disableAllMotors()
+    {
+      drivetrain.tankDrive(0, 0);
+      intakeMotor.set(0);
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0);
+      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0);
+      rightDynamicMotor.set(0);
+      leftDynamicMotor.set(0);
+      rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
+      leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
+    }
   /********************************************************************************************************************************/
 }
 
