@@ -1,16 +1,7 @@
 package frc.robot;
 
-import java.util.Collection;
-
-import com.ctre.phoenix.motorcontrol.FeedbackDevice;
-import com.ctre.phoenix.motorcontrol.InvertType;
-import com.ctre.phoenix.motorcontrol.TalonFXControlMode;
-import com.ctre.phoenix.motorcontrol.TalonFXInvertType;
 import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
-import com.ctre.phoenix.motorcontrol.can.TalonFX;
-import com.ctre.phoenix.motorcontrol.can.TalonFXConfiguration;
 import com.ctre.phoenix.motorcontrol.can.VictorSPX;
-import com.ctre.phoenix.music.Orchestra;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.CANSparkMax.SoftLimitDirection;
@@ -21,6 +12,7 @@ import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
+import edu.wpi.first.wpilibj.PowerDistribution;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -41,7 +33,10 @@ public class Robot extends TimedRobot
   private MotorControllerGroup leftDrive = new MotorControllerGroup(leftFrontMotor, leftBackMotor);
   private MotorControllerGroup rightDrive = new MotorControllerGroup(rightFrontMotor, rightBackMotor);
 
-  private DifferentialDrive drivetrain;
+  private double leftDrivePower;
+  private double rightDrivePower;
+
+  private DifferentialDrive drivetrain = new DifferentialDrive(leftDrive, rightDrive);
   /********************************************************************************************************************************/
 
   /* STORAGE AND INTAKE */
@@ -72,12 +67,14 @@ public class Robot extends TimedRobot
   private RelativeEncoder leftStaticEncoder = leftStaticMotor.getEncoder(Type.kHallSensor, 42);
   /********************************************************************************************************************************/
 
-  /* JOYSTICKS AND COMPRESSOR */
+  /* MISCELLANEOUS */
   /********************************************************************************************************************************/
   private Joystick leftController = new Joystick(0);
   private Joystick rightController = new Joystick(1);
 
   private Compressor compressor = new Compressor(PneumaticsModuleType.CTREPCM);
+
+  private PowerDistribution pdp = new PowerDistribution();
   /********************************************************************************************************************************/
   
   @Override
@@ -89,9 +86,8 @@ public class Robot extends TimedRobot
     rightStaticMotor.setInverted(false);
     rightDynamicMotor.setInverted(true);
 
-    // SETUP DRIVETRAIN
-    rightDrive.setInverted(true);
-    drivetrain = new DifferentialDrive(leftDrive, rightDrive);
+    // RESET PDP
+    pdp.clearStickyFaults();
 
     // TURN OFF ALL MOTORS
     disableAllMotors();
@@ -120,7 +116,6 @@ public class Robot extends TimedRobot
   {
     // START COMPRESSOR
     compressor.disable();
-
   }
 
   @Override
@@ -128,22 +123,29 @@ public class Robot extends TimedRobot
   {
     /* DRIVETRAIN */
   /********************************************************************************************************************************/
-    // REMOVE DRIFT
-    double leftValue = leftController.getRawAxis(1);
+    // APPLY JOYSTICK MOVEMENT TO VARIABLES
+    leftDrivePower = leftController.getRawAxis(1);
+    rightDrivePower = rightController.getRawAxis(1);
 
-    if(Math.abs(leftValue) < .05)
-      {
-        leftValue = 0;
-      }  
-  
+    // REMOVE DRIFT
+    if(Math.abs(leftDrivePower) < .10)
+    {
+      leftDrivePower = 0;
+    }
+
+    if(Math.abs(rightDrivePower) < .10)
+    {
+      rightDrivePower = 0;
+    }
+
     // DRIVETRAIN
     if(rightController.getRawAxis(2) < 0.5)
     {
-      drivetrain.curvatureDrive(0, 0, false);
+      drivetrain.tankDrive(0, 0);
     }
     else
     {
-      drivetrain.curvatureDrive(leftValue, rightController.getRawAxis(0) * -0.75, rightController.getRawButton(2));
+      drivetrain.tankDrive(leftDrivePower * 1.1, rightDrivePower * 1.1, !rightController.getRawButton(2));
     }
     
   /********************************************************************************************************************************/
@@ -169,16 +171,15 @@ public class Robot extends TimedRobot
 
     if(rightController.getRawButton(3))
     {
-      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.80);
-      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.80);
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.60);
+      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.60);
     }
 
     if(rightController.getRawButton(5))
     {
-      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.35);
-      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.35);
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.45);
+      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.45);
     }
-
 
     // INTAKE
     intakeMotor.set(0);
@@ -231,9 +232,6 @@ public class Robot extends TimedRobot
       rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, -0.07);
       leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, -0.07);
     }
-
-    // CHECK LIMITS
-
   /********************************************************************************************************************************/
   }
 
@@ -247,8 +245,9 @@ public class Robot extends TimedRobot
   public void testInit() 
   {
     disableAllMotors();
-
-    // CALLIBRATE RIGHT STATIC CLIMB
+    
+    // CALLIBRATE RIGHT STATIC CLIMB MAX HEIGHT
+    SmartDashboard.putString("Current Calibration", "Right Static - MAX HEIGHT");
     while(!rightController.getRawButton(3))
     {
       rightStaticMotor.set(rightController.getRawAxis(1) * 0.5);
@@ -258,17 +257,29 @@ public class Robot extends TimedRobot
     rightStaticMotor.set(0);
     Timer.delay(0.5);
 
+    // CALLIBRATE RIGHT STATIC CLIMB MIN HEIGHT
+    SmartDashboard.putString("Current Calibration", "Right Static - MIN HEIGHT");
+    while(!rightController.getRawButton(3))
+    {
+      rightStaticMotor.set(rightController.getRawAxis(1) * 0.5);
+      Shuffleboard.update();
+    }
+    rightStaticMotor.setSoftLimit(SoftLimitDirection.kReverse, (float) rightStaticEncoder.getPosition());
+    rightStaticMotor.set(0);
+    Timer.delay(0.5);
+
     // CALLIBRATE LEFT STATIC CLIMB
+    SmartDashboard.putString("Current Calibration", "Left Static");
     while(!leftController.getRawButton(3))
     {
       leftStaticMotor.set(leftController.getRawAxis(1) * 0.5);
       Shuffleboard.update();
     }
     leftStaticMotor.set(0);
-    leftStaticMotor.setSoftLimit(SoftLimitDirection.kForward, (float) leftStaticEncoder.getPosition());
     Timer.delay(0.5);
 
     // CALLIBRATE RIGHT DYNAMIC CLIMB
+    SmartDashboard.putString("Current Calibration", "Right Dynamic");
     while(!rightController.getRawButton(3))
     {
       rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, rightController.getRawAxis(1) * .2);
@@ -278,6 +289,7 @@ public class Robot extends TimedRobot
     Timer.delay(0.5);
 
     // CALLIBRATE LEFT DYNAMIC CLIMB
+    SmartDashboard.putString("Current Calibration", "Left Dynamic");
     while(!leftController.getRawButton(3))
     {
       leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, leftController.getRawAxis(1) * .2);
