@@ -29,39 +29,6 @@
               "imageHeight": 240
             }
           },
-          "19,0": {
-            "size": [
-              3,
-              5
-            ],
-            "content": {
-              "_type": "List Layout",
-              "_title": "Encoders",
-              "Layout/Label position": "BOTTOM",
-              "_children": [
-                {
-                  "_type": "Text View",
-                  "_source0": "network_table:///SmartDashboard/Dynamic Master Position",
-                  "_title": "Dynamic Master Position"
-                },
-                {
-                  "_type": "Text View",
-                  "_source0": "network_table:///SmartDashboard/Dynamic Slave Position",
-                  "_title": "Dynamic Slave Position"
-                },
-                {
-                  "_type": "Text View",
-                  "_source0": "network_table:///SmartDashboard/Static Master Position",
-                  "_title": "Static Master Position"
-                },
-                {
-                  "_type": "Text View",
-                  "_source0": "network_table:///SmartDashboard/Static Slave Position",
-                  "_title": "Static Slave Position"
-                }
-              ]
-            }
-          },
           "9,0": {
             "size": [
               2,
@@ -73,26 +40,48 @@
               "_title": "Air Pressure"
             }
           },
-          "11,0": {
+          "15,0": {
             "size": [
               2,
               1
             ],
             "content": {
               "_type": "Text View",
-              "_source0": "network_table:///SmartDashboard/Static right Position",
-              "_title": "Static right Position"
+              "_source0": "network_table:///SmartDashboard/Static Right Position",
+              "_title": "Static Right Position"
             }
           },
-          "13,0": {
+          "17,0": {
             "size": [
               2,
               1
             ],
             "content": {
               "_type": "Text View",
-              "_source0": "network_table:///SmartDashboard/Static left Position",
-              "_title": "Static left Position"
+              "_source0": "network_table:///SmartDashboard/Dynamic Right Position",
+              "_title": "Dynamic Right Position"
+            }
+          },
+          "9,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Dynamic Left Position",
+              "_title": "Dynamic Left Position"
+            }
+          },
+          "11,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Static Left Position",
+              "_title": "Static Left Position"
             }
           }
         }

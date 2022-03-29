@@ -13,6 +13,7 @@ import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 import com.ctre.phoenix.music.Orchestra;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
+import com.revrobotics.CANSparkMax.SoftLimitDirection;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxRelativeEncoder.Type;
 
@@ -33,12 +34,12 @@ public class Robot extends TimedRobot
   /* DRIVETRAIN */
   /********************************************************************************************************************************/
   private PWMSparkMax leftFrontMotor = new PWMSparkMax(0);
-  private CANSparkMax rightFrontMotor = new CANSparkMax(60, MotorType.kBrushed);
-  private PWMSparkMax leftBackMotor = new PWMSparkMax(2);
-  private CANSparkMax rightBackMotorCanSparkMax = new CANSparkMax(61, MotorType.kBrushed);
+  private CANSparkMax rightFrontMotor = new CANSparkMax(58, MotorType.kBrushed);
+  private PWMSparkMax leftBackMotor = new PWMSparkMax(1);
+  private CANSparkMax rightBackMotor = new CANSparkMax(59, MotorType.kBrushed);
 
   private MotorControllerGroup leftDrive = new MotorControllerGroup(leftFrontMotor, leftBackMotor);
-  private MotorControllerGroup rightDrive = new MotorControllerGroup(rightFrontMotor, rightBackMotorCanSparkMax);
+  private MotorControllerGroup rightDrive = new MotorControllerGroup(rightFrontMotor, rightBackMotor);
 
   private DifferentialDrive drivetrain;
   /********************************************************************************************************************************/
@@ -61,18 +62,14 @@ public class Robot extends TimedRobot
 
   /* CLIMB */
   /********************************************************************************************************************************/
-  private TalonFX rightStaticMotor = new TalonFX(30);
-  private TalonFX leftStaticMotor = new TalonFX(31);
-  private TalonFXConfiguration talonConfig = new TalonFXConfiguration();
+  private CANSparkMax rightStaticMotor = new CANSparkMax(40, MotorType.kBrushless);
+  private CANSparkMax leftStaticMotor = new CANSparkMax(41, MotorType.kBrushless);
   
-  private CANSparkMax rightDynamicMotor = new CANSparkMax(40, MotorType.kBrushless);
-  private CANSparkMax leftDynamicMotor = new CANSparkMax(41, MotorType.kBrushless);
+  private VictorSPX rightDynamicMotor = new VictorSPX(30);
+  private VictorSPX leftDynamicMotor = new VictorSPX(31);
 
-  private RelativeEncoder rightDynamicEncoder = rightDynamicMotor.getEncoder(Type.kHallSensor, 42);
-  private RelativeEncoder leftDynamicEncoder = leftDynamicMotor.getEncoder(Type.kHallSensor, 42);
-
-  private Orchestra orchestra = new Orchestra();
-  
+  private RelativeEncoder rightStaticEncoder = rightStaticMotor.getEncoder(Type.kHallSensor, 42);
+  private RelativeEncoder leftStaticEncoder = leftStaticMotor.getEncoder(Type.kHallSensor, 42);
   /********************************************************************************************************************************/
 
   /* JOYSTICKS AND COMPRESSOR */
@@ -88,26 +85,13 @@ public class Robot extends TimedRobot
   {
     // SET MOTOR DIRECTIONS
     leftShooterMotor.follow(rightShooterMotor, true);
-    leftStorageMotor.follow(rightStorageMotor);
-    leftStorageMotor.setInverted(InvertType.FollowMaster);
-    rightStaticMotor.setInverted(TalonFXInvertType.CounterClockwise);
-    leftStaticMotor.setInverted(TalonFXInvertType.Clockwise);
+    leftStorageMotor.setInverted(false);
+    rightStaticMotor.setInverted(false);
     rightDynamicMotor.setInverted(true);
 
     // SETUP DRIVETRAIN
     rightDrive.setInverted(true);
     drivetrain = new DifferentialDrive(leftDrive, rightDrive);
-
-    // CONFIGURE STATIC CLIMB
-    talonConfig.supplyCurrLimit.enable = true;
-    talonConfig.supplyCurrLimit.triggerThresholdCurrent = 40;
-    talonConfig.supplyCurrLimit.currentLimit = 38;
-    talonConfig.supplyCurrLimit.triggerThresholdTime = 3.0;
-    talonConfig.openloopRamp = 0.5;
-    talonConfig.primaryPID.selectedFeedbackSensor = FeedbackDevice.IntegratedSensor;
-    
-    rightStaticMotor.configAllSettings(talonConfig);
-    leftStaticMotor.configAllSettings(talonConfig);
 
     // TURN OFF ALL MOTORS
     disableAllMotors();
@@ -135,7 +119,7 @@ public class Robot extends TimedRobot
   public void teleopInit() 
   {
     // START COMPRESSOR
-    compressor.enableDigital();
+    compressor.disable();
 
   }
 
@@ -144,6 +128,14 @@ public class Robot extends TimedRobot
   {
     /* DRIVETRAIN */
   /********************************************************************************************************************************/
+    // REMOVE DRIFT
+    double leftValue = leftController.getRawAxis(1);
+
+    if(Math.abs(leftValue) < .05)
+      {
+        leftValue = 0;
+      }  
+  
     // DRIVETRAIN
     if(rightController.getRawAxis(2) < 0.5)
     {
@@ -151,40 +143,54 @@ public class Robot extends TimedRobot
     }
     else
     {
-      drivetrain.curvatureDrive(leftController.getRawAxis(1), rightController.getRawAxis(0) * -1, rightController.getRawButton(2));
+      drivetrain.curvatureDrive(leftValue, rightController.getRawAxis(0) * -0.75, rightController.getRawButton(2));
     }
+    
   /********************************************************************************************************************************/
 
     /* SHOOTER AND STORAGE AND INTAKE*/
   /********************************************************************************************************************************/
     // SHOOTER
-    if (rightController.getRawButton(1))
+    rightShooterMotor.set(0.0);
+
+    if(rightController.getRawButton(1))
     {
-      rightShooterMotor.set(0.90);
+      rightShooterMotor.setVoltage(11.50);
     }
-    else
+
+    if(rightController.getRawButton(1) && rightController.getRawButton(6))
     {
-      rightShooterMotor.set(0.0);
+      rightShooterMotor.set(-0.30);
     }
 
     // STORAGE
+    rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.0);
+    leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.0);
+
     if(rightController.getRawButton(3))
     {
-      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.55);
-    }
-    else
-    {
-      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.0);
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.80);
+      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.80);
     }
 
+    if(rightController.getRawButton(5))
+    {
+      rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.35);
+      leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.35);
+    }
+
+
     // INTAKE
+    intakeMotor.set(0);
+
     if(leftController.getRawButton(1))
     {
-      intakeMotor.set(0.2);
+      intakeMotor.set(0.3);
     }
-    else
+
+    if(leftController.getRawButton(1) && leftController.getRawButton(5))
     {
-      intakeMotor.set(0);
+      intakeMotor.set(-0.2);
     }
   /********************************************************************************************************************************/
   
@@ -193,37 +199,37 @@ public class Robot extends TimedRobot
     // STATIC CONTROL
     if(leftController.getPOV() == 0)
     {
-      rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0.9);
-      leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0.9);
+      rightStaticMotor.set(-0.9);
+      leftStaticMotor.set(-0.9);
     }
     if(leftController.getPOV() == 180)
     {
-      rightStaticMotor.set(TalonFXControlMode.PercentOutput, -0.9);
-      leftStaticMotor.set(TalonFXControlMode.PercentOutput, -0.9);
+      rightStaticMotor.set( 0.9);
+      leftStaticMotor.set(0.9);
     }
 
     if(leftController.getPOV() == -1)
     {
-      rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
-      leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
+      rightStaticMotor.set(0.0);
+      leftStaticMotor.set(0.0);
     }
 
     // DYNAMIC CONTROL
     if(rightController.getPOV() == 90)
     {
-      rightDynamicMotor.set(0.25);
-      leftDynamicMotor.set(0.25);
+      rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, 0.33);
+      leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, 0.33);
     }
     if(rightController.getPOV() == 270)
     {
-      rightDynamicMotor.set(-0.25);
-      leftDynamicMotor.set(-0.25);
+      rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, -0.55);
+      leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, -0.55);
     }
 
     if(rightController.getPOV() == -1)
     {
-      rightDynamicMotor.set(0.00);
-      leftDynamicMotor.set(0.00);
+      rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, -0.07);
+      leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, -0.07);
     }
 
     // CHECK LIMITS
@@ -245,42 +251,39 @@ public class Robot extends TimedRobot
     // CALLIBRATE RIGHT STATIC CLIMB
     while(!rightController.getRawButton(3))
     {
-      rightStaticMotor.set(TalonFXControlMode.PercentOutput, rightController.getRawAxis(1) * 0.5);
+      rightStaticMotor.set(rightController.getRawAxis(1) * 0.5);
       Shuffleboard.update();
     }
-    
-    rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0);
-    rightStaticMotor.setSelectedSensorPosition(0);
+    rightStaticMotor.setSoftLimit(SoftLimitDirection.kForward, (float) rightStaticEncoder.getPosition());
+    rightStaticMotor.set(0);
     Timer.delay(0.5);
 
     // CALLIBRATE LEFT STATIC CLIMB
     while(!leftController.getRawButton(3))
     {
-      leftStaticMotor.set(TalonFXControlMode.PercentOutput, leftController.getRawAxis(1) * 0.5);
+      leftStaticMotor.set(leftController.getRawAxis(1) * 0.5);
       Shuffleboard.update();
     }
-    leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0);
-    leftStaticMotor.setSelectedSensorPosition(0);
+    leftStaticMotor.set(0);
+    leftStaticMotor.setSoftLimit(SoftLimitDirection.kForward, (float) leftStaticEncoder.getPosition());
     Timer.delay(0.5);
 
     // CALLIBRATE RIGHT DYNAMIC CLIMB
     while(!rightController.getRawButton(3))
     {
-      rightDynamicMotor.set(rightController.getRawAxis(1) * .2);
-      Shuffleboard.update();
+      rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, rightController.getRawAxis(1) * .2);
     }
-    rightDynamicMotor.set(0);
-    rightDynamicEncoder.setPosition(0);
+    rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, 0);
+    rightStaticEncoder.setPosition(0);
     Timer.delay(0.5);
 
     // CALLIBRATE LEFT DYNAMIC CLIMB
     while(!leftController.getRawButton(3))
     {
-      leftDynamicMotor.set(leftController.getRawAxis(1) * .2);
-      Shuffleboard.update();
+      leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, leftController.getRawAxis(1) * .2);
     }
-    leftDynamicMotor.set(0);
-    leftDynamicEncoder.setPosition(0);
+    leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, 0);
+    leftStaticEncoder.setPosition(0);
     
     // Shuffleboard.update();
   }
@@ -293,10 +296,8 @@ public class Robot extends TimedRobot
     private void createSmartDashboardValues()
     {
       SmartDashboard.putNumber("Air Pressure", compressor.getPressure());
-      SmartDashboard.putNumber("Static Right Position", rightStaticMotor.getSelectedSensorPosition(0));
-      SmartDashboard.putNumber("Static Left Position", leftStaticMotor.getSelectedSensorPosition(0));
-      SmartDashboard.putNumber("Dynamic Right Position", rightDynamicEncoder.getPosition());
-      SmartDashboard.putNumber("Dynamic Left Position", leftDynamicEncoder.getPosition());
+      SmartDashboard.putNumber("Static Right Position", rightStaticEncoder.getPosition());
+      SmartDashboard.putNumber("Static Left Position", leftStaticEncoder.getPosition());
       
     }
 
@@ -306,10 +307,10 @@ public class Robot extends TimedRobot
       intakeMotor.set(0);
       rightStorageMotor.set(VictorSPXControlMode.PercentOutput, 0);
       leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0);
-      rightDynamicMotor.set(0);
-      leftDynamicMotor.set(0);
-      rightStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
-      leftStaticMotor.set(TalonFXControlMode.PercentOutput, 0.0);
+      rightDynamicMotor.set(VictorSPXControlMode.PercentOutput, 0);
+      leftDynamicMotor.set(VictorSPXControlMode.PercentOutput, 0);
+      rightStaticMotor.set(0.0);
+      leftStaticMotor.set(0.0);
     }
   /********************************************************************************************************************************/
 }
