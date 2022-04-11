@@ -84,7 +84,7 @@
               "_title": "Switchable Camera",
               "Crosshair/Show crosshair": true,
               "Crosshair/Crosshair color": "#FFFFFFFF",
-              "Controls/Show controls": true,
+              "Controls/Show controls": false,
               "Controls/Rotation": "NONE",
               "compression": -1.0,
               "fps": 30,
@@ -92,15 +92,28 @@
               "imageHeight": 120
             }
           },
-          "17,1": {
+          "9,0": {
+            "size": [
+              4,
+              4
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Fire:",
+              "_title": "Fire:",
+              "Colors/Color when true": "#7CFC00FF",
+              "Colors/Color when false": "#8B0000FF"
+            }
+          },
+          "17,5": {
             "size": [
               2,
               2
             ],
             "content": {
               "_type": "Boolean Box",
-              "_source0": "network_table:///SmartDashboard/Fire:",
-              "_title": "Fire:",
+              "_source0": "network_table:///SmartDashboard/Static Stoppers On?:",
+              "_title": "Static Stoppers On?:",
               "Colors/Color when true": "#7CFC00FF",
               "Colors/Color when false": "#8B0000FF"
             }
@@ -113,6 +126,6 @@
     "x": -6.400000095367432,
     "y": 0.0,
     "width": 1548.800048828125,
-    "height": 671.2000122070312
+    "height": 678.4000244140625
   }
 }

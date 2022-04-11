@@ -11,8 +11,6 @@ import com.revrobotics.SparkMaxRelativeEncoder.Type;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.cscore.VideoSink;
-import edu.wpi.first.networktables.NetworkTableEntry;
-import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Encoder;
@@ -30,16 +28,19 @@ public class Robot extends TimedRobot
 {
   /* DRIVETRAIN */
   /********************************************************************************************************************************/
-  private PWMSparkMax leftFrontMotor = new PWMSparkMax(0);
+  private PWMSparkMax leftFrontMotor = new PWMSparkMax(2);
   private CANSparkMax rightFrontMotor = new CANSparkMax(58, MotorType.kBrushed);
-  private PWMSparkMax leftBackMotor = new PWMSparkMax(1);
+  private PWMSparkMax leftBackMotor = new PWMSparkMax(3);
   private CANSparkMax rightBackMotor = new CANSparkMax(59, MotorType.kBrushed);
 
   private MotorControllerGroup leftDrive = new MotorControllerGroup(leftFrontMotor, leftBackMotor);
   private MotorControllerGroup rightDrive = new MotorControllerGroup(rightFrontMotor, rightBackMotor);
 
-  private Encoder leftDriveEncoder = new Encoder(8, 9, false, EncodingType.k2X);
-  private Encoder rightDriveEncoder = new Encoder(6, 7, true, EncodingType.k2X);
+  private Encoder leftDriveEncoder = new Encoder(8, 9, false, EncodingType.k4X);
+  private Encoder rightDriveEncoder = new Encoder(6, 7, true, EncodingType.k4X);
+
+  // PIDController rightEncoderLoop = new PIDController(1.0/0.029, 0.0, 0.0);
+  // PIDController lefttEncoderLoop = new PIDController(1.0, 0.0, 0.0); //8.998
 
   private double leftDrivePower;
   private double rightDrivePower;
@@ -78,6 +79,7 @@ public class Robot extends TimedRobot
   private RelativeEncoder rightStaticEncoder = rightStaticMotor.getEncoder(Type.kHallSensor, 42);
   private RelativeEncoder leftStaticEncoder = leftStaticMotor.getEncoder(Type.kHallSensor, 42);
 
+  private boolean isClimbLocked = true;
   /********************************************************************************************************************************/
 
   /* MISCELLANEOUS */
@@ -97,7 +99,6 @@ public class Robot extends TimedRobot
   public void robotInit() 
   {
     // SET MOTOR DIRECTIONS
-    intakeMotor.setInverted(true);
     leftShooterMotor.follow(rightShooterMotor, true);
     leftStorageMotor.setInverted(false);
     rightStaticMotor.setInverted(true);
@@ -111,6 +112,7 @@ public class Robot extends TimedRobot
     leftStorageMotor.configAllSettings(storageConfig);
     //rightStorageMotor.configAllSettings(storageConfig);
 
+    // START SERVER
 
     server = CameraServer.addSwitchedCamera("Switchable Camera");
     // START CAMERA
@@ -123,6 +125,7 @@ public class Robot extends TimedRobot
     camera2.setFPS(30);
     camera2.setResolution(160, 120);
 
+    // APPLY CAMERA TO SERVER
     server.setSource(camera2);
 
     // TURN OFF ALL MOTORS
@@ -135,7 +138,7 @@ public class Robot extends TimedRobot
   @Override
     public void robotPeriodic() 
   {
-    SmartDashboard.updateValues();
+    updateSmartDashboardValues();
   }
 
   @Override
@@ -145,79 +148,103 @@ public class Robot extends TimedRobot
     rightDriveEncoder.reset();
     leftDriveEncoder.reset();
 
+    // while(rightDriveEncoder.getDistance() < 4.5)
+    // {
+    //   rightDrive.set(rightEncoderLoop.calculate(rightDriveEncoder.getDistance(), -4.5));
+    //   System.out.println(rightEncoderLoop.getPositionError());
+    //   updateSmartDashboardValues();
+    // }
+    // rightDrive.set(0);
+    // while(leftDriveEncoder.getDistance() < 4.4)
+    // {
+    //   leftDrive.set(lefttEncoderLoop.calculate(leftDriveEncoder.getDistance(), -4.5));
+    //   System.out.println(lefttEncoderLoop.getPositionError());
+    //   updateSmartDashboardValues();
+    // }
+    // leftDrive.set(0);
+
     leftIntakePiston.set(Value.kForward);
     rightIntakePiston.set(Value.kForward);
 
-    // // TURN TOWARDS BALL
-    // while(rightDriveEncoder.getDistance() < 0.55)
-    // {
-    //   rightDrive.set(0.15);
-    // }
-    // rightDrive.set(0);
-    // rightDriveEncoder.reset(); /// ...< 7.0
-
+    
     // DRIVE TO BALL
-    while(rightDriveEncoder.getDistance() < 4.00)
+    long startTime= System.currentTimeMillis(); 
+    while(leftDriveEncoder.getDistance() < 4.5)
     {
-      rightDrive.set(0.30);
-      leftDrive.set(-0.32);
-      intakeMotor.set(0.7);
+      rightDrive.set(0.40);
+      leftDrive.set(-0.385);
+      intakeMotor.set(-0.7);
+      updateSmartDashboardValues();
+
+      if(startTime+ 5000 < System.currentTimeMillis())
+      {
+        return;
+      }
     }
     leftDrive.set(0);
     rightDrive.set(0);
-    intakeMotor.set(0);
+    Timer.delay(0.5);
+    intakeMotor.set(-0.2);
     rightDriveEncoder.reset();
+    leftDriveEncoder.reset();
 
     Timer.delay(0.5);
     
     // ROTATE ROBOT
-    while(rightDriveEncoder.getDistance() < 3.00)
+    startTime= System.currentTimeMillis();
+    while(leftDriveEncoder.getDistance() > -3.00)
     {
-      rightDrive.set(0.20);
-      leftDrive.set(0.22);
+      rightDrive.set(0.30);
+      leftDrive.set(0.32);
+
+      if(startTime+ 5000 < System.currentTimeMillis())
+      {
+        return;
+      }
     }
     leftDrive.set(0);
     rightDrive.set(0);
-    rightDriveEncoder.reset();
+    leftDriveEncoder.reset();
 
     Timer.delay(0.5);
 
     // DRIVE TO LINE
+    startTime= System.currentTimeMillis();
     while(rightDriveEncoder.getDistance() <  3.5)
     {
-      rightDrive.set(0.30);
-      leftDrive.set(-0.32);
+      rightDrive.set(0.40);
+      leftDrive.set(-0.40);
+
+      if(startTime+ 5000 < System.currentTimeMillis())
+      {
+        return;
+      }
     }
     leftDrive.set(0);
     rightDrive.set(0);
     rightDriveEncoder.reset();
+    intakeMotor.set(0);
 
-    leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.70);
-    Timer.delay(0.4);
-    leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0);
+    // leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0.70);
+    // Timer.delay(0.4);
+    // leftStorageMotor.set(VictorSPXControlMode.PercentOutput, 0);
 
-    // FIRE BALLS
-    rightShooterMotor.setVoltage(10.50);
-    Timer.delay(2.25);
-    leftStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.75);
-    Timer.delay(2.5);
-    intakeMotor.set(1.5);
-    Timer.delay(3);
-    disableAllMotors();
-
+    // // FIRE BALLS
+    // rightShooterMotor.setVoltage(11.75);
+    // Timer.delay(2.5);
+    // leftStorageMotor.set(VictorSPXControlMode.PercentOutput, -0.75);
+    // Timer.delay(2.0);
+    // intakeMotor.set(-0.7);
   }
 
   @Override
-  public void autonomousPeriodic() 
-  {
-    disableAllMotors();
-
-    
-  }
+  public void autonomousPeriodic() {}
 
   @Override
   public void teleopInit() 
   {
+    disableAllMotors();
+
     // START COMPRESSOR
     compressor.enableDigital();
 
@@ -226,10 +253,6 @@ public class Robot extends TimedRobot
     rightDriveEncoder.reset();
 
     updateSmartDashboardValues();
-
-    
-
-    
   }
 
   @Override
@@ -242,19 +265,19 @@ public class Robot extends TimedRobot
     rightDrivePower = rightController.getRawAxis(1);
 
     // SCALE DOWN JOYSTICK AXIS VALUES
-    leftDrivePower = leftDrivePower*.8;
-    rightDrivePower = rightDrivePower*.8;
+    leftDrivePower = leftDrivePower;
+    rightDrivePower = rightDrivePower;
 
     // READS BUTTON VALUES TO ADJUST SPEED OF DRIVETRAIN
     if (rightController.getRawButton(5) == true) 
     {
-      leftDrivePower = leftDrivePower * .95;
-      rightDrivePower = rightDrivePower * .95;
+      leftDrivePower = leftDrivePower * .99;
+      rightDrivePower = rightDrivePower * .98;
     } 
     else 
     {
-      leftDrivePower = leftDrivePower * .75;
-      rightDrivePower = rightDrivePower * .75;
+      leftDrivePower = leftDrivePower * .85;
+      rightDrivePower = rightDrivePower * .83;
     }
 
     // REMOVES CONTROLLER DRIFT
@@ -335,12 +358,12 @@ public class Robot extends TimedRobot
 
     if(leftController.getRawButton(1))
     {
-      intakeMotor.set(0.7);
+      intakeMotor.set(-0.7);
     }
 
     if(leftController.getRawButton(5))
     {
-      intakeMotor.set(-0.45);
+      intakeMotor.set(0.7);
     }
 
     if(leftController.getRawButton(6))
@@ -375,15 +398,26 @@ public class Robot extends TimedRobot
       leftStaticMotor.set(0.0);
     }
 
-    if(rightStaticEncoder.getPosition() < 0)
+    if(leftController.getRawButtonPressed(12))
     {
-      rightStaticMotor.set(0.055);
+      isClimbLocked = false;
     }
 
-    if(leftStaticEncoder.getPosition() < 0)
+    if(isClimbLocked)
     {
-      leftStaticMotor.set(0.055);
+      if(rightStaticEncoder.getPosition() < 0)
+      {
+        rightStaticMotor.set(0.055);
+      }
+  
+      if(leftStaticEncoder.getPosition() < 0)
+      {
+        leftStaticMotor.set(0.055);
+      }
     }
+
+    
+
 
     // DYNAMIC CONTROL
     if(rightController.getPOV() == 90)
@@ -404,10 +438,9 @@ public class Robot extends TimedRobot
     }
   /********************************************************************************************************************************/
     
-    if (leftController.getRawAxis(2) > 0.5) 
+    if (leftController.getRawAxis(2) < 0.5) 
     {
-    server.setSource(camera1);
-    compressor.disable();    
+    server.setSource(camera1);   
     } 
     else
     {
@@ -490,10 +523,12 @@ public class Robot extends TimedRobot
     leftStaticEncoder.setPosition(0);
     
     SmartDashboard.putString("Current Calibration", "None");
+    updateSmartDashboardValues();
+    
   }
 
   @Override
-  public void testPeriodic() {}
+  public void testPeriodic() { return; }
 
   /* HELPER METHODS */
   /********************************************************************************************************************************/
@@ -505,6 +540,7 @@ public class Robot extends TimedRobot
       SmartDashboard.putNumber("Right Drive Encoder Position", rightDriveEncoder.getDistance());
       SmartDashboard.putNumber("Shooter Velocity", shooterEncoder.getVelocity());
       SmartDashboard.putBoolean("Fire:", canFire);
+      SmartDashboard.putBoolean("Static Stoppers On?:", isClimbLocked);
     }
 
     private void disableAllMotors()
@@ -520,6 +556,7 @@ public class Robot extends TimedRobot
       leftStaticMotor.set(0.0);
       rightShooterMotor.set(0.0);
     }
+    
   /********************************************************************************************************************************/
 }
 
