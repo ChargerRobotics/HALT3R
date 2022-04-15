@@ -90,9 +90,9 @@ public class Robot extends TimedRobot
   private Compressor compressor = new Compressor(PneumaticsModuleType.CTREPCM);
 
   private UsbCamera camera1;
-  private UsbCamera camera2;
+  // private UsbCamera camera2;
 
-  private VideoSink server;
+  // private VideoSink server;
   /********************************************************************************************************************************/
   
   @Override
@@ -114,19 +114,19 @@ public class Robot extends TimedRobot
 
     // START SERVER
 
-    server = CameraServer.addSwitchedCamera("Switchable Camera");
+    // server = CameraServer.addSwitchedCamera("Switchable Camera");
     // START CAMERA
-    camera1 = CameraServer.startAutomaticCapture(0);
+    camera1 = CameraServer.startAutomaticCapture();
     camera1.setFPS(30);
-    camera1.setResolution(160, 120);
+    camera1.setResolution(640, 480);
 
-    // START CAMERA
-    camera2 = CameraServer.startAutomaticCapture(1);
-    camera2.setFPS(30);
-    camera2.setResolution(160, 120);
+    // // START CAMERA
+    // camera2 = CameraServer.startAutomaticCapture(1);
+    // camera2.setFPS(30);
+    // camera2.setResolution(160, 120);
 
     // APPLY CAMERA TO SERVER
-    server.setSource(camera2);
+    // server.setSource(camera2);
 
     // TURN OFF ALL MOTORS
     disableAllMotors();
@@ -271,13 +271,13 @@ public class Robot extends TimedRobot
     // READS BUTTON VALUES TO ADJUST SPEED OF DRIVETRAIN
     if (rightController.getRawButton(5) == true) 
     {
-      leftDrivePower = leftDrivePower * .99;
-      rightDrivePower = rightDrivePower * .98;
+      leftDrivePower = leftDrivePower * .87;
+      rightDrivePower = rightDrivePower * .88;
     } 
     else 
     {
-      leftDrivePower = leftDrivePower * .85;
-      rightDrivePower = rightDrivePower * .83;
+      leftDrivePower = leftDrivePower * .72;
+      rightDrivePower = rightDrivePower * .73;
     }
 
     // REMOVES CONTROLLER DRIFT
@@ -438,14 +438,14 @@ public class Robot extends TimedRobot
     }
   /********************************************************************************************************************************/
     
-    if (leftController.getRawAxis(2) < 0.5) 
-    {
-    server.setSource(camera1);   
-    } 
-    else
-    {
-    server.setSource(camera2);
-    }
+    // if (leftController.getRawAxis(2) < 0.5) 
+    // {
+    // server.setSource(camera1);   
+    // } 
+    // else
+    // {
+    // server.setSource(camera2);
+    // }
 
     if (shooterEncoder.getVelocity() > 4700)
     {
